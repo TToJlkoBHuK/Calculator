@@ -16,7 +16,8 @@ int main() {
 
 	while (true) {
 		try {
-			std::cin >> input;
+			std::getline(std::cin, input);
+			if (input.empty()) continue;
 			if (input == "exit") {
 				std::cout << "EXIT" << std::endl;
 				return 0;

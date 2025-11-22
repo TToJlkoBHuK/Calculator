@@ -1,78 +1,34 @@
-# Требуемая минимальная версия CMake
 cmake_minimum_required(VERSION 3.10)
 
-# Название проекта (будет видно в Visual Studio)
-project(CalculatorProjectView CXX)
+# Название проекта
+project(MathParserCalculator)
 
-# --- 1. Основное приложение ---
-# Cобираем все .cpp и .h файлы из папок cpp и h
+# Стандарт C++ (используем 17, так как это современный стандарт)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-file(GLOB APP_SOURCES "cpp/*.cpp")
-file(GLOB APP_HEADERS "h/*.h")
+# Говорим CMake, где искать заголовочные файлы (.h)
+include_directories(${CMAKE_SOURCE_DIR}/include)
 
-# Создаем "фиктивную" цель-приложение. 
-# Преподаватель НЕ будет ее собирать, она нужна только для отображения файлов в VS.
-add_executable(CalculatorApp ${APP_SOURCES} ${APP_HEADERS})
+# Собираем список всех .cpp файлов из папки src
+file(GLOB SOURCES "src/*.cpp")
 
-# Указываем, где лежат заголовочные файлы для этого приложения
-target_include_directories(CalculatorApp PUBLIC
-    "${CMAKE_CURRENT_SOURCE_DIR}/h"
-    "${CMAKE_CURRENT_SOURCE_DIR}/includes"
-)
+# Создаем исполняемый файл
+add_executable(Calculator ${SOURCES})
 
-# --- 2. Общие файлы (includes) ---
-# Cобираем все .cpp и .h файлы из папки includes
+# --- Настройка для Windows ---
+if(WIN32)
+    # Если используются специфичные либы Windows, их можно добавить здесь. 
+    # Обычно kernel32 (где LoadLibrary) линкуется автоматически.
+    # Но на всякий случай можно оставить пустым, если MinGW/MSVC сами подтягивают.
+endif()
 
-file(GLOB SHARED_SOURCES "includes/*.cpp")
-file(GLOB SHARED_HEADERS "includes/*.h")
-
-# Создаем "фиктивную" библиотеку для общего кода
-# Это создаст отдельный проект "SharedCode" в решении VS
-add_library(SharedCode ${SHARED_SOURCES} ${SHARED_HEADERS})
-
-# Указываем папку 'includes'
-target_include_directories(SharedCode PUBLIC
-    "${CMAKE_CURRENT_SOURCE_DIR}/includes"
-)
-
-# --- 3. Плагины (только исходный код) ---
-# Мы создадим "фиктивную" библиотеку для *каждого* плагина.
-# Это создаст отдельные проекты в VS (plugin_funccos, plugin_funcln и т.д.),
-# чтобы преподаватель мог легко просмотреть код каждого плагина.
-
-# Плагин: funccos
-file(GLOB PLUGIN_FUNCCOS_SOURCES "plugins/funccos/*.cpp")
-file(GLOB PLUGIN_FUNCCOS_HEADERS "plugins/funccos/*.h")
-add_library(plugin_funccos ${PLUGIN_FUNCCOS_SOURCES} ${PLUGIN_FUNCCOS_HEADERS})
-target_include_directories(plugin_funccos PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/plugins/funccos")
-
-# Плагин: funcln
-file(GLOB PLUGIN_FUNCLN_SOURCES "plugins/funcln/*.cpp")
-file(GLOB PLUGIN_FUNCLN_HEADERS "plugins/funcln/*.h")
-add_library(plugin_funcln ${PLUGIN_FUNCLN_SOURCES} ${PLUGIN_FUNCLN_HEADERS})
-target_include_directories(plugin_funcln PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/plugins/funcln")
-
-# Плагин: funcpow
-file(GLOB PLUGIN_FUNCPOW_SOURCES "plugins/funcpow/*.cpp")
-file(GLOB PLUGIN_FUNCPOW_HEADERS "plugins/funcpow/*.h")
-add_library(plugin_funcpow ${PLUGIN_FUNCPOW_SOURCES} ${PLUGIN_FUNCPOW_HEADERS})
-target_include_directories(plugin_funcpow PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/plugins/funcpow")
-
-# Плагин: funcsin
-file(GLOB PLUGIN_FUNCSIN_SOURCES "plugins/funcsin/*.cpp")
-file(GLOB PLUGIN_FUNCSIN_HEADERS "plugins/funcsin/*.h")
-add_library(plugin_funcsin ${PLUGIN_FUNCSIN_SOURCES} ${PLUGIN_FUNCSIN_HEADERS})
-target_include_directories(plugin_funcsin PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/plugins/funcsin")
-
-# --- 4. Сообщение-инструкция ---
-# Добавляем специальную цель, которая просто выводит сообщение в консоль.
-# Это напомнит преподавателю, что не нужно нажимать "Build" (Сборка).
-
-add_custom_target(README_Instructions
-    COMMAND ${CMAKE_COMMAND} -E echo "=========================================================="
-    COMMAND ${CMAKE_COMMAND} -E echo "Этот проект предназначен только для просмотра кода."
-    COMMAND ${CMAKE_COMMAND} -E echo "НЕ НАЖИМАЙТЕ 'Build' (Сборка)."
-    COMMAND ${CMAKE_COMMAND} -E echo "Для запуска используйте Calculate.exe в корневой папке."
-    COMMAND ${CMAKE_COMMAND} -E echo "=========================================================="
-    COMMENT "Важные инструкции (см. консоль вывода)"
+# --- Копирование плагинов ---
+# Чтобы программа нашла DLL, они должны лежать рядом с .exe
+# Эта команда копирует папку plugins в папку сборки после компиляции.
+add_custom_command(TARGET Calculator POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    ${CMAKE_SOURCE_DIR}/plugins
+    $<TARGET_FILE_DIR:Calculator>/plugins
+    COMMENT "Copying plugins to output directory..."
 )

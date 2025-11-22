@@ -10,7 +10,22 @@ std::vector<Vocab> parse(const std::string& s, const Register& registry) {
     for (int i = 0; i < s.length(); ++i) {
         char c = s[i];
 
-        if (isspace(c)) continue; 
+        if (isspace(c)) {
+            if (!vocab.empty()) {
+                if (isdigit(vocab[0]) || vocab[0] == '.') {
+                    parser.emplace_back(Type::NUM, vocab);
+                }
+                else {
+                    IOperator* op = registry.getOper(vocab);
+                    if (!op) throw std::runtime_error("Unknown function '" + vocab + "'");
+
+                    if (op->getAr() == 1) parser.emplace_back(Type::UNA_OPR, vocab);
+                    else parser.emplace_back(Type::BIN_OPR, vocab);
+                }
+                vocab.clear();
+            }
+            continue;
+        }
         if (!vocab.empty()) {
             bool vocabIsNum = isdigit(vocab[0]) || vocab[0] == '.';
             bool vocabIsFunc = isalpha(vocab[0]);
@@ -72,7 +87,7 @@ std::vector<Vocab> parse(const std::string& s, const Register& registry) {
     }
 
     if (!vocab.empty()) {
-        if (isdigit(vocab[0])) {
+        if (isdigit(vocab[0]) || vocab[0] == '.') {
             parser.emplace_back(Type::NUM, vocab);
         }
         else if (isalpha(vocab[0])) {

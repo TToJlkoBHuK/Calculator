@@ -4,8 +4,7 @@
 #include "vocabulary.h"
 #include "Tree.h"
 #include "Register.h"
-#include "includes/ErrorMessage.h"
-#include "includes/ErrorMessage.cpp"
+#include "ErrorMessage.h"
 
 int main() {
 

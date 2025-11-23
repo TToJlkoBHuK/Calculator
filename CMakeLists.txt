@@ -1,32 +1,56 @@
 cmake_minimum_required(VERSION 3.10)
 
-# Название проекта
 project(MathParserCalculator)
 
-# Стандарт C++17
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-add_compile_definitions(UNICODE _UNICODE) 
 
-# 1. Указываем, где лежат заголовки (.h)
-# Теперь в коде можно писать #include "header.h"
+add_compile_definitions(UNICODE _UNICODE)
+
 include_directories(${CMAKE_SOURCE_DIR}/include)
+include_directories(${CMAKE_SOURCE_DIR}/includes)
 
-# 2. Автоматически находим все исходники (.cpp) в папке src
-file(GLOB SOURCES "src/*.cpp")
+file(GLOB SOURCES_MAIN "src/*.cpp")
+add_executable(Calculator ${SOURCES_MAIN})
 
-# 3. Создаем исполняемый файл
-add_executable(Calculator ${SOURCES})
+# create /plugins
+add_custom_command(TARGET Calculator PRE_BUILD
+    COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_FILE_DIR:Calculator>/plugins
+)
 
-# 4. (Важно для Windows) Копирование DLL плагинов после сборки
-# Это гарантирует, что exe найдет dll, запускаясь из любой папки
-if(WIN32)
-    if(EXISTS "${CMAKE_SOURCE_DIR}/plugins")
-        add_custom_command(TARGET Calculator POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_directory
-            ${CMAKE_SOURCE_DIR}/plugins
-            $<TARGET_FILE_DIR:Calculator>/plugins
-            COMMENT "Копирование папки plugins к исполняемому файлу..."
+#autogeneration DLL
+function(add_math_plugin PLUGIN_NAME FOLDER_NAME)
+    set(PLUGIN_DIR "${CMAKE_SOURCE_DIR}/plugins_view/${FOLDER_NAME}")
+
+    if(EXISTS "${PLUGIN_DIR}")
+
+        file(GLOB PLUGIN_SOURCES "${PLUGIN_DIR}/*.cpp")
+
+        # create DLL
+        add_library(${PLUGIN_NAME} SHARED ${PLUGIN_SOURCES})
+
+        target_include_directories(${PLUGIN_NAME} PRIVATE "${PLUGIN_DIR}")
+        
+        target_include_directories(${PLUGIN_NAME} PRIVATE "${CMAKE_SOURCE_DIR}/include")
+
+        #xxx.dll
+        set_target_properties(${PLUGIN_NAME} PROPERTIES OUTPUT_NAME "${PLUGIN_NAME}")
+
+        #copy DLL -> plugins with Calculator.exe
+        add_custom_command(TARGET ${PLUGIN_NAME} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            $<TARGET_FILE:${PLUGIN_NAME}>
+            $<TARGET_FILE_DIR:Calculator>/plugins/
+            COMMENT "Copying ${PLUGIN_NAME}.dll to plugins directory..."
         )
+        
+        message(STATUS "Plugin configured: ${PLUGIN_NAME} from ${FOLDER_NAME}")
+    else()
+        message(WARNING "Plugin source folder not found: ${PLUGIN_DIR}")
     endif()
-endif()
+endfunction()
+
+add_math_plugin("funccos" "funccos")
+add_math_plugin("funcsin" "funcsin")
+add_math_plugin("funcpow" "funcpow") 
+add_math_plugin("funcln"  "funcln")

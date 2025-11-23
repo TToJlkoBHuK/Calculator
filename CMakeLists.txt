@@ -1,7 +1,9 @@
 cmake_minimum_required(VERSION 3.10)
 
+# Название проекта
 project(MathParserCalculator)
 
+# Стандарт C++
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -13,30 +15,29 @@ include_directories(${CMAKE_SOURCE_DIR}/includes)
 file(GLOB SOURCES_MAIN "src/*.cpp")
 add_executable(Calculator ${SOURCES_MAIN})
 
-# create /plugins
+# Создаем папку plugins рядом с exe (куда будем складывать DLL)
 add_custom_command(TARGET Calculator PRE_BUILD
     COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_FILE_DIR:Calculator>/plugins
 )
 
-#autogeneration DLL
+# Эта функция автоматически настраивает сборку для каждой DLL
 function(add_math_plugin PLUGIN_NAME FOLDER_NAME)
+    # Путь к исходникам плагина
     set(PLUGIN_DIR "${CMAKE_SOURCE_DIR}/plugins_view/${FOLDER_NAME}")
 
+    # Проверяем, существует ли папка (чтобы CMake не ругался, если плагина нет)
     if(EXISTS "${PLUGIN_DIR}")
-
         file(GLOB PLUGIN_SOURCES "${PLUGIN_DIR}/*.cpp")
 
-        # create DLL
+        # Создаем библиотеку (DLL)
         add_library(${PLUGIN_NAME} SHARED ${PLUGIN_SOURCES})
 
         target_include_directories(${PLUGIN_NAME} PRIVATE "${PLUGIN_DIR}")
-        
+
         target_include_directories(${PLUGIN_NAME} PRIVATE "${CMAKE_SOURCE_DIR}/include")
 
-        #xxx.dll
         set_target_properties(${PLUGIN_NAME} PROPERTIES OUTPUT_NAME "${PLUGIN_NAME}")
 
-        #copy DLL -> plugins with Calculator.exe
         add_custom_command(TARGET ${PLUGIN_NAME} POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E copy_if_different
             $<TARGET_FILE:${PLUGIN_NAME}>
@@ -49,6 +50,8 @@ function(add_math_plugin PLUGIN_NAME FOLDER_NAME)
         message(WARNING "Plugin source folder not found: ${PLUGIN_DIR}")
     endif()
 endfunction()
+
+# Первый аргумент - имя DLL (без .dll), Второй - имя папки в plugins_view
 
 add_math_plugin("funccos" "funccos")
 add_math_plugin("funcsin" "funcsin")

@@ -4,8 +4,8 @@
 #include <memory>
 #include <math.h>
 
-#include "../../includes/BaseOperationClass.h"
-#include "../../includes/ErrorMessage.h"
+#include "BaseOperationClass.h"
+#include "ErrorMessage.h"
 
 class FuncCos : public BaseOperation {
 public:

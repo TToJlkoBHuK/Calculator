@@ -1,6 +1,69 @@
 #include "parser.h"
 #include <cctype>
 
+void flushVocab(std::string& vocab, std::vector<Vocab>& parser, const Register& registry) {
+    if (vocab.empty()) {
+        return;
+    }
+
+    if (isdigit(vocab[0]) || vocab[0] == '.') {
+        parser.emplace_back(Type::NUM, vocab);
+    }
+    else {
+        IOperator* op = registry.getOper(vocab);
+        if (!op) {
+            throw std::runtime_error("Unknown function '" + vocab + "'");
+        }
+
+        if (op->getAr() == 1) {
+            parser.emplace_back(Type::UNA_OPR, vocab);
+        }
+        else {
+            parser.emplace_back(Type::BIN_OPR, vocab);
+        }
+    }
+    vocab.clear();
+}
+
+bool isUnaryContext(const std::vector<Vocab>& parser) {
+    if (parser.empty()) {
+        return true;
+    }
+
+    const Vocab& last = parser.back();
+    if (last.type == Type::BRC && last.value == "(") {
+        return true;
+    }
+    if (last.type == Type::BIN_OPR) {
+        return true;
+    }
+    if (last.type == Type::UNA_OPR) {
+        return true;
+    }
+
+    return false;
+}
+
+void processOperator(char c, std::vector<Vocab>& parser, const Register& registry) {
+    std::string opStr(1, c);
+
+    if (opStr == "-" && isUnaryContext(parser)) {
+        parser.emplace_back(Type::UNA_OPR, "neg");
+        return;
+    }
+
+    IOperator* op = registry.getOper(opStr);
+    if (!op) {
+        throw std::runtime_error("Unknown operator '" + opStr + "'");
+    }
+
+    if (op->getAr() == 1) {
+        parser.emplace_back(Type::UNA_OPR, opStr);
+    }
+    else {
+        parser.emplace_back(Type::BIN_OPR, opStr);
+    }
+}
 
 std::vector<Vocab> parse(const std::string& s, const Register& registry) {
     std::vector<Vocab> parser;
@@ -11,21 +74,10 @@ std::vector<Vocab> parse(const std::string& s, const Register& registry) {
         char c = s[i];
 
         if (isspace(c)) {
-            if (!vocab.empty()) {
-                if (isdigit(vocab[0]) || vocab[0] == '.') {
-                    parser.emplace_back(Type::NUM, vocab);
-                }
-                else {
-                    IOperator* op = registry.getOper(vocab);
-                    if (!op) throw std::runtime_error("Unknown function '" + vocab + "'");
-
-                    if (op->getAr() == 1) parser.emplace_back(Type::UNA_OPR, vocab);
-                    else parser.emplace_back(Type::BIN_OPR, vocab);
-                }
-                vocab.clear();
-            }
+            flushVocab(vocab, parser, registry);
             continue;
         }
+
         if (!vocab.empty()) {
             bool vocabIsNum = isdigit(vocab[0]) || vocab[0] == '.';
             bool vocabIsFunc = isalpha(vocab[0]);
@@ -33,71 +85,33 @@ std::vector<Vocab> parse(const std::string& s, const Register& registry) {
             bool charIsFunc = isalpha(c);
 
             if ((vocabIsNum && !charIsNum) || (vocabIsFunc && !charIsFunc)) {
-
-                if (vocabIsNum) {
-                    parser.emplace_back(Type::NUM, vocab);
-                }
-                else if (vocabIsFunc) {
-                    IOperator* op = registry.getOper(vocab);
-                    if (!op) throw std::runtime_error("Unknown function '" + vocab + "'");
-
-                    if (op->getAr() == 1) parser.emplace_back(Type::UNA_OPR, vocab);
-                    else parser.emplace_back(Type::BIN_OPR, vocab);
-                }
-                vocab.clear();
+                flushVocab(vocab, parser, registry);
             }
         }
 
-        if (isalpha(c)) {
-            vocab += c;
-        }
-        else if (isdigit(c) || c == '.') {
+        if (isalpha(c) || isdigit(c) || c == '.') {
             vocab += c;
         }
         else if (c == '(') {
+            flushVocab(vocab, parser, registry);
             countBrc++;
             parser.emplace_back(Type::BRC, "(");
         }
         else if (c == ')') {
+            flushVocab(vocab, parser, registry);
             countBrc--;
-            if (countBrc < 0) throw std::runtime_error("Check ( )");
+            if (countBrc < 0) {
+                throw std::runtime_error("Check ( )");
+            }
             parser.emplace_back(Type::BRC, ")");
         }
         else {
-            std::string opStr(1, c);
-
-            bool isUnaryMinus = (opStr == "-" &&
-                (parser.empty() ||
-                    (parser.back().type == Type::BRC && parser.back().value == "(") ||
-                    parser.back().type == Type::BIN_OPR ||
-                    parser.back().type == Type::UNA_OPR
-                    ));
-
-            if (isUnaryMinus) {
-                parser.emplace_back(Type::UNA_OPR, "neg");
-            }
-            else {
-                IOperator* op = registry.getOper(opStr);
-                if (!op) throw std::runtime_error("Unknown operator '" + opStr + "'");
-
-                if (op->getAr() == 1) parser.emplace_back(Type::UNA_OPR, opStr);
-                else parser.emplace_back(Type::BIN_OPR, opStr);
-            }
+            flushVocab(vocab, parser, registry);
+            processOperator(c, parser, registry);
         }
     }
 
-    if (!vocab.empty()) {
-        if (isdigit(vocab[0]) || vocab[0] == '.') {
-            parser.emplace_back(Type::NUM, vocab);
-        }
-        else if (isalpha(vocab[0])) {
-            IOperator* op = registry.getOper(vocab);
-            if (!op) throw std::runtime_error("Unknown function '" + vocab + "'");
-
-            if (op->getAr() == 1) parser.emplace_back(Type::UNA_OPR, vocab);
-            else parser.emplace_back(Type::BIN_OPR, vocab);
-        }
-    }
+    flushVocab(vocab, parser, registry);
 
     if (countBrc != 0) {
         throw std::runtime_error("Mismatched parentheses");
@@ -106,10 +120,7 @@ std::vector<Vocab> parse(const std::string& s, const Register& registry) {
 }
 
 int Priority(const Vocab& voc, const Register& registry) {
-    if (voc.type == Type::NUM) {
-        return 0;
-    }
-    if (voc.type == Type::BRC) {
+    if (voc.type == Type::NUM || voc.type == Type::BRC) {
         return 0;
     }
 
@@ -118,8 +129,12 @@ int Priority(const Vocab& voc, const Register& registry) {
         throw std::runtime_error("[Priority] Unknown operation '" + voc.value + "'");
     }
 
-    if (voc.value == "+" || voc.value == "-") return 1;
-    if (voc.value == "*" || voc.value == "/") return 2;
+    if (voc.value == "+" || voc.value == "-") {
+        return 1;
+    }
+    if (voc.value == "*" || voc.value == "/") {
+        return 2;
+    }
 
     if (op->getAr() == 2) {
         return 3;

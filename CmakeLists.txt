@@ -1,0 +1,31 @@
+cmake_minimum_required(VERSION 3.12)
+
+project(pattern_command VERSION 1.0 LANGUAGES CXX)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF) # Отключает расширения компилятора (гарантирует переносимость)
+
+set(SOURCES
+    main.cpp
+    Engine.cpp
+)
+
+set(HEADERS
+    Engine.h
+    ICommand.h
+    Subject.h
+    Wrapper.h
+)
+
+add_executable(pattern_command ${SOURCES} ${HEADERS})
+
+target_include_directories(pattern_command PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+
+if(MSVC)
+    # Максимальный уровень предупреждений для Visual Studio
+    target_compile_options(pattern_command PRIVATE /W4)
+else()
+    # Предупреждения для GCC/Clang (Linux/MacOS/MinGW)
+    target_compile_options(pattern_command PRIVATE -Wall -Wextra -pedantic)
+endif()

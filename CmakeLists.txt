@@ -1,0 +1,35 @@
+cmake_minimum_required(VERSION 3.12)
+
+project(pattern_command VERSION 1.0 LANGUAGES CXX)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF) 
+
+set(PUBLIC_DIR "Public")
+set(PRIVATE_DIR "Private")
+
+set(SOURCES
+    ${PRIVATE_DIR}/main.cpp
+    ${PRIVATE_DIR}/Engine.cpp
+)
+
+set(HEADERS
+    ${PUBLIC_DIR}/Engine.h
+    ${PUBLIC_DIR}/ICommand.h
+    ${PUBLIC_DIR}/Subject.h
+    ${PUBLIC_DIR}/Wrapper.h
+)
+
+add_executable(pattern_command ${SOURCES} ${HEADERS})
+
+target_include_directories(pattern_command 
+    PRIVATE 
+    ${PUBLIC_DIR}
+)
+
+if(MSVC)
+    target_compile_options(pattern_command PRIVATE /W4)
+else()
+    target_compile_options(pattern_command PRIVATE -Wall -Wextra -pedantic)
+endif()
